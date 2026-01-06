@@ -1,1 +1,708 @@
+local Killing = Window:AddTab({
+    Title = "Matar",
+    Icon = "skull"
+})
 
+local KillingSection = Killing:AddSection({
+    Title = "Matança"
+})
+
+local selectedPet = ""
+local petDropdown = KillingSection:AddDropdown({
+    Title = "Selecionar Pet",
+    Values = {"Wild Wizard", "Mighty Monster"},
+    Default = "",
+    Callback = function(text)
+        selectedPet = text
+        local petsFolder = game.Players.LocalPlayer.petsFolder
+        for _, folder in pairs(petsFolder:GetChildren()) do
+            if folder:IsA("Folder") then
+                for _, pet in pairs(folder:GetChildren()) do
+                    game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("unequipPet", pet)
+                end
+            end
+        end
+        task.wait(0.2)
+
+        local petName = text
+        local petsToEquip = {}
+
+        for _, pet in pairs(game.Players.LocalPlayer.petsFolder.Unique:GetChildren()) do
+            if pet.Name == petName then
+                table.insert(petsToEquip, pet)
+            end
+        end
+
+        for i = 1, math.min(8, #petsToEquip) do
+            game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("equipPet", petsToEquip[i])
+            task.wait(0.1)
+        end
+    end
+})
+
+local LocalPlayer = game.Players.LocalPlayer
+
+local noPunchToggle = KillingSection:AddToggle({
+    Title = "Soco Sem Animação",
+    Default = false,
+    Callback = function(state)
+        if state then
+            local blockedAnimations = {
+                ["rbxassetid://3638729053"] = true,
+                ["rbxassetid://3638767427"] = true,
+            }
+
+            local function stopBlockedAnimations(humanoid)
+                for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+                    if track.Animation then
+                        local animId = track.Animation.AnimationId
+                        local animName = track.Name:lower()
+                        if blockedAnimations[animId] or animName:match("punch") or animName:match("attack") or animName:match("right") then
+                            track:Stop()
+                        end
+                    end
+                end
+            end
+
+            local function setupAnimationBlocking()
+                local char = LocalPlayer.Character
+                if not char or not char:FindFirstChild("Humanoid") then return end
+                local humanoid = char:FindFirstChild("Humanoid")
+
+                stopBlockedAnimations(humanoid)
+
+                if not _G.AnimBlockConnection then
+                    _G.AnimBlockConnection = humanoid.AnimationPlayed:Connect(function(track)
+                        if track.Animation then
+                            local animId = track.Animation.AnimationId
+                            local animName = track.Name:lower()
+                            if blockedAnimations[animId] or animName:match("punch") or animName:match("attack") or animName:match("right") then
+                                track:Stop()
+                            end
+                        end
+                    end)
+                end
+            end
+
+            setupAnimationBlocking()
+
+            _G.AutoPunchLoop = true
+            task.spawn(function()
+                while _G.AutoPunchLoop do
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChild("Humanoid") then
+                        stopBlockedAnimations(char.Humanoid)
+                    end
+
+                    local punch = LocalPlayer.Backpack:FindFirstChild("Punch") or (char and char:FindFirstChild("Punch"))
+                    if punch then
+                        if punch.Parent ~= char then
+                            punch.Parent = char
+                        end
+                        LocalPlayer.muscleEvent:FireServer("punch", "rightHand")
+                        LocalPlayer.muscleEvent:FireServer("punch", "leftHand")
+                    end
+                    task.wait(0.01)
+                end
+            end)
+
+            if not _G.CharacterAddedConnection then
+                _G.CharacterAddedConnection = LocalPlayer.CharacterAdded:Connect(function()
+                    task.wait(1)
+                    setupAnimationBlocking()
+                end)
+            end
+        else
+            _G.AutoPunchLoop = false
+            if _G.AnimBlockConnection then _G.AnimBlockConnection:Disconnect() _G.AnimBlockConnection = nil end
+        end
+    end
+})
+
+local function disableProteinEgg()
+    pcall(function()
+        local backpack = LocalPlayer:WaitForChild("Backpack")
+        local proteinEgg = backpack:FindFirstChild("Protein Egg")
+        
+        if proteinEgg then
+            if proteinEgg.Enabled == false and proteinEgg.CanBeDropped == false then
+                return
+            else
+                proteinEgg:Destroy()
+                task.wait(0.1)
+            end
+        end
+    
+        local newEgg = Instance.new("Tool")
+        newEgg.Name = "Protein Egg"
+        newEgg.Enabled = false
+        newEgg.CanBeDropped = false
+        newEgg.RequiresHandle = false
+        newEgg.Parent = backpack
+    end)
+end
+
+local function monitorProteinEgg()
+    while true do
+        disableProteinEgg()
+        task.wait(0.5)
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    disableProteinEgg()
+end)
+
+local disableEggButton = KillingSection:AddButton({
+    Title = "Desativar Ovo (Egg)",
+    Callback = function()
+        disableProteinEgg()
+        coroutine.wrap(monitorProteinEgg)()
+    end
+})
+
+disableProteinEgg()
+coroutine.wrap(monitorProteinEgg)()
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function checkCharacter()
+    if not LocalPlayer.Character then
+        repeat task.wait() until LocalPlayer.Character
+    end
+    return LocalPlayer.Character
+end
+
+local function gettool()
+    for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+        if v.Name == "Punch" and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid:EquipTool(v)
+        end
+    end
+    LocalPlayer.muscleEvent:FireServer("punch", "leftHand")
+    LocalPlayer.muscleEvent:FireServer("punch", "rightHand")
+end
+
+local function isPlayerAlive(player)
+    return player and player.Character
+       and player.Character:FindFirstChild("HumanoidRootPart")
+       and player.Character:FindFirstChild("Humanoid")
+       and player.Character.Humanoid.Health > 0
+end
+
+local function killPlayer(target)
+    if not isPlayerAlive(target) then return end
+    local character = checkCharacter()
+    if character and character:FindFirstChild("LeftHand") then
+        pcall(function()
+            firetouchinterest(target.Character.HumanoidRootPart, character.LeftHand, 0)
+            firetouchinterest(target.Character.HumanoidRootPart, character.LeftHand, 1)
+            gettool()
+        end)
+    end
+end
+
+_G.whitelistedPlayers = _G.whitelistedPlayers or {}
+_G.blacklistedPlayers = _G.blacklistedPlayers or {}
+
+local function isWhitelisted(player)
+    for _, name in ipairs(_G.whitelistedPlayers) do
+        if name:lower() == player.Name:lower() then
+            return true
+        end
+    end
+    return false
+end
+
+local function isBlacklisted(player)
+    for _, name in ipairs(_G.blacklistedPlayers) do
+        if name:lower() == player.Name:lower() then
+            return true
+        end
+    end
+    return false
+end
+
+local whitelistTextBox = KillingSection:AddTextbox({
+    Title = "Escreva o Nome do Jogador p/ tirar do Auto Kill",
+    Placeholder = "Escreva o Nome do Jogador",
+    Finished = true,
+    Callback = function(inputText)
+        local playerName = inputText:match("^%s*(.-)%s*$")
+        if playerName ~= "" then
+            for _, name in ipairs(_G.whitelistedPlayers) do
+                if name:lower() == playerName:lower() then return end
+            end
+            table.insert(_G.whitelistedPlayers, playerName)
+        end
+    end
+})
+
+local function updateWhitelistDropdown()
+    local players = game:GetService("Players"):GetPlayers()
+    local playerValues = {}
+    
+    for _, player in ipairs(players) do
+        if player ~= LocalPlayer then
+            local cleanDisplayName = player.DisplayName:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+            if cleanDisplayName == "" or cleanDisplayName == player.Name then
+                table.insert(playerValues, player.Name)
+            else
+                table.insert(playerValues, cleanDisplayName .. " | " .. player.Name)
+            end
+        end
+    end
+    
+    if whitelistDropdown then
+        whitelistDropdown:SetValues(playerValues)
+    end
+end
+
+local whitelistDropdown = KillingSection:AddDropdown({
+    Title = "Tirar Pessoa(s) do Auto Kill",
+    Values = {},
+    Default = "",
+    Callback = function(selectedText)
+        local playerName = selectedText:match("| (.+)$") or selectedText
+        if playerName then
+            playerName = playerName:match("^%s*(.-)%s*$")
+            for _, name in ipairs(_G.whitelistedPlayers) do
+                if name:lower() == playerName:lower() then return end
+            end
+            table.insert(_G.whitelistedPlayers, playerName)
+        end
+    end
+})
+
+updateWhitelistDropdown()
+
+game:GetService("Players").PlayerAdded:Connect(function()
+    task.wait(0.1)
+    updateWhitelistDropdown()
+end)
+
+game:GetService("Players").PlayerRemoving:Connect(function()
+    task.wait(0.1)
+    updateWhitelistDropdown()
+end)
+
+local clearWhitelistButton = KillingSection:AddButton({
+    Title = "Colocar Novamente Pessoas no Auto Kull",
+    Callback = function()
+        _G.whitelistedPlayers = {}
+    end
+})
+
+local autoWhitelistToggle = KillingSection:AddToggle({
+    Title = "Tirar Amigos do Auto Kill Automaticamente",
+    Default = false,
+    Callback = function(state)
+        if state then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player:IsFriendsWith(LocalPlayer.UserId) then
+                    local already = false
+                    for _, name in ipairs(_G.whitelistedPlayers) do
+                        if name:lower() == player.Name:lower() then
+                            already = true
+                            break
+                        end
+                    end
+                    if not already then
+                        table.insert(_G.whitelistedPlayers, player.Name)
+                    end
+                end
+            end
+        end
+    end
+})
+
+local autoEquipPunch = false
+local autoPunchNoAnim = false
+
+local autoEquipToggle = KillingSection:AddToggle({
+    Title = "Equipar Soco Automaticamente",
+    Default = false,
+    Callback = function(state)
+        autoEquipPunch = state
+        task.spawn(function()
+            while autoEquipPunch do
+                local punch = LocalPlayer.Backpack:FindFirstChild("Punch")
+                if punch then
+                    punch.Parent = LocalPlayer.Character
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+})
+
+local autoPunchNoAnimToggle = KillingSection:AddToggle({
+    Title = "Bater Automaticamente [Sem Animação]",
+    Default = false,
+    Callback = function(state)
+        autoPunchNoAnim = state
+        task.spawn(function()
+            while autoPunchNoAnim do
+                local punch = LocalPlayer.Backpack:FindFirstChild("Punch") or LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Punch")
+                if punch then
+                    if punch.Parent ~= LocalPlayer.Character then
+                        punch.Parent = LocalPlayer.Character
+                    end
+                    LocalPlayer.muscleEvent:FireServer("punch", "rightHand")
+                    LocalPlayer.muscleEvent:FireServer("punch", "leftHand")
+                else
+                    autoPunchNoAnim = false
+                end
+                task.wait(0.01)
+            end
+        end)
+    end
+})
+
+local fastPunchToggle = KillingSection:AddToggle({
+    Title = "Bater Rapidamente",
+    Default = false,
+    Callback = function(state)
+        _G.fastHitActive = state
+        if state then
+            task.spawn(function()
+                while _G.fastHitActive do
+                    local punch = LocalPlayer.Backpack:FindFirstChild("Punch")
+                    if punch then
+                        punch.Parent = LocalPlayer.Character
+                        if punch:FindFirstChild("attackTime") then
+                            punch.attackTime.Value = 0
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end)
+            task.spawn(function()
+                while _G.fastHitActive do
+                    local punch = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Punch")
+                    if punch then
+                        punch:Activate()
+                    end
+                    task.wait(0.1)
+                end
+            end)
+        else
+            local punch = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Punch")
+            if punch then
+                punch.Parent = LocalPlayer.Backpack
+            end
+        end
+    end
+})
+
+local ultraFastPunchToggle = KillingSection:AddToggle({
+    Title = "Bater Ultra Rapidamente",
+    Default = false,
+    Callback = function(state)
+        _G.autoPunchActive = state
+        if state then
+            task.spawn(function()
+                while _G.autoPunchActive do
+                    local punch = LocalPlayer.Backpack:FindFirstChild("Punch")
+                    if punch then
+                        punch.Parent = LocalPlayer.Character
+                        if punch:FindFirstChild("attackTime") then
+                            punch.attackTime.Value = 0
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+            task.spawn(function()
+                while _G.autoPunchActive do
+                    local punch = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Punch")
+                    if punch then
+                        punch:Activate()
+                    end
+                    task.wait()
+                end
+            end)
+        else
+            local punch = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Punch")
+            if punch then
+                punch.Parent = LocalPlayer.Backpack
+            end
+        end
+    end
+})
+
+local blacklistTextbox = KillingSection:AddTextbox({
+    Title = "Escreva o Nome do Jogador p/ Matar",
+    Placeholder = "Escreva o Nome do Jogador",
+    Finished = true,
+    Callback = function(inputText)
+        local playerName = inputText:match("^%s*(.-)%s*$")
+        if playerName ~= "" then
+            for _, name in ipairs(_G.blacklistedPlayers) do
+                if name:lower() == playerName:lower() then return end
+            end
+            table.insert(_G.blacklistedPlayers, playerName)
+        end
+    end
+})
+
+local function updateBlacklistDropdown()
+    local players = game:GetService("Players"):GetPlayers()
+    local playerValues = {}
+    
+    for _, player in ipairs(players) do
+        if player ~= LocalPlayer then
+            local cleanDisplayName = player.DisplayName:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+            if cleanDisplayName == "" or cleanDisplayName == player.Name then
+                table.insert(playerValues, player.Name)
+            else
+                table.insert(playerValues, cleanDisplayName .. " | " .. player.Name)
+            end
+        end
+    end
+    
+    if blacklistDropdown then
+        blacklistDropdown:SetValues(playerValues)
+    end
+end
+
+local blacklistDropdown = KillingSection:AddDropdown({
+    Title = "Sslecionar Pessoa(s) Para Matar",
+    Values = {},
+    Default = "",
+    Callback = function(selectedText)
+        local playerName = selectedText:match("| (.+)$") or selectedText
+        if playerName then
+            playerName = playerName:match("^%s*(.-)%s*$")
+            for _, name in ipairs(_G.blacklistedPlayers) do
+                if name:lower() == playerName:lower() then return end
+            end
+            table.insert(_G.blacklistedPlayers, playerName)
+        end
+    end
+})
+
+updateBlacklistDropdown()
+
+game:GetService("Players").PlayerAdded:Connect(function()
+    task.wait(0.1)
+    updateBlacklistDropdown()
+end)
+
+game:GetService("Players").PlayerRemoving:Connect(function()
+    task.wait(0.1)
+    updateBlacklistDropdown()
+end)
+
+local clearBlacklistButton = KillingSection:AddButton({
+    Title = "Parar de Matar Quem Você Selecionou",
+    Callback = function()
+        _G.blacklistedPlayers = {}
+    end
+})
+
+local killBlacklistToggle = KillingSection:AddToggle({
+    Title = "Matar Quem Você Selecionou",
+    Default = false,
+    Callback = function(state)
+        _G.killBlacklistedOnly = state
+        if state then
+            if not _G.blacklistKillConnection then
+                _G.blacklistKillConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and isBlacklisted(player) then
+                            killPlayer(player)
+                        end
+                    end
+                end)
+            end
+        else
+            if _G.blacklistKillConnection then
+                _G.blacklistKillConnection:Disconnect()
+                _G.blacklistKillConnection = nil
+            end
+        end
+    end
+})
+
+local autoKillToggle = KillSection:AddToggle({
+    Title = "Matar Todos",
+    Default = false,
+    Callback = function(state)
+        _G.killAll = state
+        if state then
+            if not _G.killAllConnection then
+                _G.killAllConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and not isWhitelisted(player) then
+                            killPlayer(player)
+                        end
+                    end
+                end)
+            end
+        else
+            if _G.killAllConnection then
+                _G.killAllConnection:Disconnect()
+                _G.killAllConnection = nil
+            end
+        end
+    end
+})
+
+local DeathRingSection = Killing:AddSection({
+    Title = "Complementos"
+})
+
+local deathRingRangeTextbox = DeathRingSection:AddTextbox({
+    Title = "Tamanho (1-140)",
+    Placeholder = "Digite o Tamanho",
+    Default = "20",
+    Finished = true,
+    Callback = function(text)
+        local range = tonumber(text)
+        if range then
+            _G.deathRingRange = math.clamp(range, 1, 140)
+        end
+    end
+})
+
+local targetPlayerTextbox = DeathRingSection:AddTextbox({
+    Title = "Nome do Jogador (Opcional)",
+    Placeholder = "Enter target name",
+    Finished = true,
+    Callback = function(text)
+        _G.targetPlayerName = text
+    end
+})
+
+local deathRingToggle = DeathRingSection:AddToggle({
+    Title = "Matar a Longa Distância",
+    Default = false,
+    Callback = function(state)
+        _G.deathRingEnabled = state
+        if state then
+            if not _G.deathRingConnection then
+                _G.deathRingConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                    local character = checkCharacter()
+                    local myPos = character and character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart.Position
+                    if myPos then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player ~= LocalPlayer and not isWhitelisted(player) and isPlayerAlive(player) then
+                                if (myPos - player.Character.HumanoidRootPart.Position).Magnitude <= (_G.deathRingRange or 20) then
+                                    killPlayer(player)
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        else
+            if _G.deathRingConnection then
+                _G.deathRingConnection:Disconnect()
+                _G.deathRingConnection = nil
+            end
+        end
+    end
+})
+
+_G.whitelistedPlayers = _G.whitelistedPlayers or {}
+_G.blacklistedPlayers = _G.blacklistedPlayers or {}
+
+local whitelistLabel = DeathRingSection:AddParagraph({
+    Title = "Pessoas que Você Removeu do Auto Kill:",
+    Content = "Nenhum"
+})
+
+local blacklistLabel = DeathRingSection:AddParagraph({
+    Title = "Pessoas que Está Matando:",
+    Content = "Nenhum"
+})
+
+local clearWhitelistButton2 = DeathRingSection:AddButton({
+    Title = "Voltar a Matar Quem Você Tirou do Auto Kill",
+    Callback = function()
+        _G.whitelistedPlayers = {}
+        updateWhitelistLabel()
+    end
+})
+
+local clearTargetsButton = DeathRingSection:AddButton({
+    Title = "Parar de Matar Quem Você Selecionou",
+    Callback = function()
+        _G.blacklistedPlayers = {}
+        updateBlacklistLabel()
+    end
+})
+
+local function updateWhitelistLabel()
+    if #_G.whitelistedPlayers == 0 then
+        whitelistLabel:SetContent("None")
+    else
+        local displayText = ""
+        for i, playerName in ipairs(_G.whitelistedPlayers) do
+            if i > 3 then
+                displayText = displayText .. "..."
+                break
+            end
+            if i > 1 then displayText = displayText .. ", " end
+            displayText = displayText .. playerName
+        end
+        whitelistLabel:SetContent(displayText)
+    end
+end
+
+local function updateBlacklistLabel()
+    if #_G.blacklistedPlayers == 0 then
+        blacklistLabel:SetContent("None")
+    else
+        local displayText = ""
+        for i, playerName in ipairs(_G.blacklistedPlayers) do
+            if i > 3 then
+                displayText = displayText .. "..."
+                break
+            end
+            if i > 1 then displayText = displayText .. ", " end
+            displayText = displayText .. playerName
+        end
+        blacklistLabel:SetContent(displayText)
+    end
+end
+
+local lastWhitelistCount = 0
+local lastBlacklistCount = 0
+
+task.spawn(function()
+    while true do
+        if #_G.whitelistedPlayers ~= lastWhitelistCount then
+            updateWhitelistLabel()
+            lastWhitelistCount = #_G.whitelistedPlayers
+        end
+        
+        if #_G.blacklistedPlayers ~= lastBlacklistCount then
+            updateBlacklistLabel()
+            lastBlacklistCount = #_G.blacklistedPlayers
+        end
+        
+        task.wait(0.2)
+    end
+end)
+
+local function updateAllDropdowns()
+    updateWhitelistDropdown()
+    updateBlacklistDropdown()
+end
+
+game:GetService("Players").PlayerAdded:Connect(function()
+    task.wait(0.1)
+    updateAllDropdowns()
+end)
+
+game:GetService("Players").PlayerRemoving:Connect(function(player)
+    if player.Name == SelectPlayerName then
+        SelectPlayerName = ""
+    end
+    task.wait(0.1)
+    updateAllDropdowns()
+end)
