@@ -133,12 +133,79 @@ FarmarForcaSection:AddButton({
     end
 })
 
-FarmarSection:AddButton({
-    Title = "Anti Lag (Tela Preta)",
+local antiLagButton = FarmarForcaSection:AddButton({
+    Title = "Anti Lag",
     Callback = function()
-        local player = game.Players.LocalPlayer
-        local playerGui = player:WaitForChild("PlayerGui")
-        local lighting = game:GetService("Lighting")
+        local jogador = game.Players.LocalPlayer
+        local playerGui = jogador:WaitForChild("PlayerGui")
+        local iluminacao = game:GetService("Lighting")
+
+        for _, gui in pairs(playerGui:GetChildren()) do
+            if gui:IsA("ScreenGui") then
+                gui:Destroy()
+            end
+        end
+
+        local function escurecerCeu()
+            for _, v in pairs(iluminacao:GetChildren()) do
+                if v:IsA("Sky") then
+                    v:Destroy()
+                end
+            end
+
+            local ceuEscuro = Instance.new("Sky")
+            ceuEscuro.Name = "DarkSky"
+            ceuEscuro.SkyboxBk = "rbxassetid://0"
+            ceuEscuro.SkyboxDn = "rbxassetid://0"
+            ceuEscuro.SkyboxFt = "rbxassetid://0"
+            ceuEscuro.SkyboxLf = "rbxassetid://0"
+            ceuEscuro.SkyboxRt = "rbxassetid://0"
+            ceuEscuro.SkyboxUp = "rbxassetid://0"
+            ceuEscuro.Parent = iluminacao
+
+            iluminacao.Brightness = 0
+            iluminacao.ClockTime = 0
+            iluminacao.TimeOfDay = "00:00:00"
+            iluminacao.OutdoorAmbient = Color3.new(0, 0, 0)
+            iluminacao.Ambient = Color3.new(0, 0, 0)
+            iluminacao.FogColor = Color3.new(0, 0, 0)
+            iluminacao.FogEnd = 100
+
+            task.spawn(function()
+                while true do
+                    task.wait(5)
+                    if not iluminacao:FindFirstChild("DarkSky") then
+                        ceuEscuro:Clone().Parent = iluminacao
+                    end
+                    iluminacao.Brightness = 0
+                    iluminacao.ClockTime = 0
+                    iluminacao.OutdoorAmbient = Color3.new(0, 0, 0)
+                    iluminacao.Ambient = Color3.new(0, 0, 0)
+                    iluminacao.FogColor = Color3.new(0, 0, 0)
+                    iluminacao.FogEnd = 100
+                end
+            end)
+        end
+
+        local function removerEfeitosParticulas()
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") then
+                    obj:Destroy()
+                end
+            end
+        end
+
+        local function removerFontesLuz()
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+                    obj:Destroy()
+                end
+            end
+        end
+
+        removerEfeitosParticulas()
+        removerFontesLuz()
+        escurecerCeu()
     end
 })
 
