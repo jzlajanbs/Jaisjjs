@@ -7,7 +7,7 @@ end)
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/3345-c-a-t-s-u-s/Harmony/refs/heads/main/src/init.luau"))()
 
 local Window = Library.new({
-    Title = "Sad Free Version",
+    Title = "FusionX Free Version",
     Scale = UDim2.new(0, 550, 0, 400),
 })
 
@@ -2554,5 +2554,53 @@ TeleportSection:AddButton({
         local character = player.Character or player.CharacterAdded:Wait()
         local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
         humanoidRootPart.CFrame = CFrame.new(-1849, 20, -6335)
+    end
+})
+
+local CreditosTab = Window:AddTab({
+    Title = "Créditos",
+    Icon = "heart"
+})
+
+local CreditosSection = CreditosTab:AddSection({
+    Title = "Informações"
+})
+
+CreditosSection:AddParagraph({
+    Title = "FusionX Free Version",
+    Content = "Feito por Sad."
+})
+
+CreditosSection:AddParagraph({
+    Title = "Tem alguma dúvidas ou encontrou algum problema?",
+    Content = "Entre No Servidor do Discord!"
+})
+
+CreditosSection:AddParagraph({
+    Title = "Mais Atualizações em breve",
+    Content = "Aproveite!"
+})
+
+CreditosSection:AddParagraph({
+    Title = "Discord",
+    Content = "Junte-se ao nosso servidor!"
+})
+
+CreditosSection:AddButton({
+    Title = "Copiar Link do Discord",
+    Callback = function()
+        local discordLink = "https://discord.gg/TCsaTKQ66q"
+        pcall(function()
+            if setclipboard then
+                setclipboard(discordLink)
+            end
+        end)
+        pcall(function()
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Discord",
+                Text = "Link copiado! " .. discordLink,
+                Duration = 5
+            })
+        end)
     end
 })
