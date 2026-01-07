@@ -2572,12 +2572,12 @@ CreditosSection:AddParagraph({
 })
 
 CreditosSection:AddParagraph({
-    Title = "Tem alguma dúvidas ou encontrou algum problema?",
+    Title = "Tem alguma dúvida ou encontrou algum problema?",
     Content = "Entre No Servidor do Discord!"
 })
 
 CreditosSection:AddParagraph({
-    Title = "Mais Atualizações em breve",
+    Title = "Mais atualizações em breve.",
     Content = "Aproveite!"
 })
 
