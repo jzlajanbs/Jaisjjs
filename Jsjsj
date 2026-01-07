@@ -1,0 +1,388 @@
+local FarmarPackTab = Window:AddTab({
+    Title = "Farmar [Pack]",
+    Icon = "lucide-package"
+})
+
+local FarmarForcaSection = PacksTab:AddSection({
+    Title = "Farmar Força (Pack)"
+})
+
+local repsPerTick = 30
+local runFastRep = false
+
+local function getPing()
+    local stats = game:GetService("Stats")
+    local pingStat = stats:FindFirstChild("PerformanceStats") and stats.PerformanceStats:FindFirstChild("Ping")
+    return pingStat and pingStat:GetValue() or 0
+end
+
+local function fastRepLoop()
+    while runFastRep do
+        local startTick = tick()
+        while tick() - startTick < 0.75 and runFastRep do
+            for i = 1, repsPerTick do
+                game:GetService("Players").LocalPlayer.muscleEvent:FireServer("rep")
+            end
+            task.wait(0.02)
+        end
+        while runFastRep and getPing() >= 350 do
+            task.wait(1)
+        end
+    end
+end
+
+FarmarForcaSection:AddToggle({
+    Title = "Farmar Força Rapidamente (Precisa de 7-8 Packs)",
+    Default = false,
+    Callback = function(state)
+        if state and not runFastRep then
+            runFastRep = true
+            task.spawn(fastRepLoop)
+        elseif not state and runFastRep then
+            runFastRep = false
+        end
+    end
+})
+
+local Player = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local function unequipPets()
+    for _, folder in pairs(Player.petsFolder:GetChildren()) do
+        if folder:IsA("Folder") then
+            for _, pet in pairs(folder:GetChildren()) do
+                ReplicatedStorage.rEvents.equipPetEvent:FireServer("unequipPet", pet)
+            end
+        end
+    end
+    task.wait(0.1)
+end
+
+local function equipPetsByName(name)
+    unequipPets()
+    task.wait(0.01)
+    for _, pet in pairs(Player.petsFolder.Unique:GetChildren()) do
+        if pet.Name == name then
+            ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", pet)
+        end
+    end
+end
+
+local function activateProteinEgg()
+    local tool = Player.Character:FindFirstChild("Protein Egg") or Player.Backpack:FindFirstChild("Protein Egg")
+    if tool then
+        game:GetService("Players").LocalPlayer.muscleEvent:FireServer("proteinEgg", tool)
+    end
+end
+
+local running = false
+
+task.spawn(function()
+    while true do
+        if running then
+            activateProteinEgg()
+            task.wait(1800)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
+FarmarForcaSection:AddToggle({
+    Title = "Comer Ovo Automaticamente",
+    Default = false,
+    Callback = function(state)
+        running = state
+        if state then
+            activateProteinEgg()
+        end
+    end
+})
+
+local function activateShake()
+    local tool = Player.Character:FindFirstChild("Tropical Shake") or Player.Backpack:FindFirstChild("Tropical Shake")
+    if tool then
+        game:GetService("Players").LocalPlayer.muscleEvent:FireServer("tropicalShake", tool)
+    end
+end
+
+local runningShake = false
+
+task.spawn(function()
+    while true do
+        if runningShake then
+            activateShake()
+            task.wait(900)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
+FarmarForcaSection:AddButton({
+    Title = "Jungle Squat",
+    Callback = function()
+        local player = game.Players.LocalPlayer
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char:WaitForChild("HumanoidRootPart")
+        hrp.CFrame = CFrame.new(-8371.43359375, 6.79806327, 2858.88525390)
+        task.wait(0.2)
+        game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        task.wait(0.05)
+        game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.E, false, game)
+    end
+})
+
+FarmarSection:AddButton({
+    Title = "Anti Lag (Tela Preta)",
+    Callback = function()
+        local player = game.Players.LocalPlayer
+        local playerGui = player:WaitForChild("PlayerGui")
+        local lighting = game:GetService("Lighting")
+    end
+})
+
+FarmarForcaSection:AddButton({
+    Title = "Equipar Swift Samurai",
+    Callback = function()
+        unequipPets()
+        equipPetsByName("Swift Samurai")
+    end
+})
+
+local FarmarSection = FarmarPackTab:AddSection({
+    Title = "Farmar Rebirth (Pack)"
+})
+
+FarmarSection:AddToggle({
+    Title = "Farmar Rebirth Rapidamente (Precisa de 7-8 Packs)",
+    Default = false,
+    Callback = function(bool)
+        fastRebirth = bool
+        if fastRebirth then
+            spawn(function()
+                local a = game:GetService("ReplicatedStorage")
+                local b = game:GetService("Players")
+                local c = b.LocalPlayer
+
+                local function unequipAllPets()
+                    for _, folder in pairs(c.petsFolder:GetChildren()) do
+                        if folder:IsA("Folder") then
+                            for _, pet in pairs(folder:GetChildren()) do
+                                a.rEvents.equipPetEvent:FireServer("unequipPet", pet)
+                            end
+                        end
+                    end
+                    task.wait(0.1)
+                end
+
+                local function equipPetByName(name)
+                    unequipAllPets()
+                    task.wait(0.01)
+                    for _, pet in pairs(c.petsFolder.Unique:GetChildren()) do
+                        if pet.Name == name then
+                            a.rEvents.equipPetEvent:FireServer("equipPet", pet)
+                        end
+                    end
+                end
+
+                local function findMachine(machineName)
+                    local machine = workspace.machinesFolder:FindFirstChild(machineName)
+                    if not machine then
+                        for _, f in pairs(workspace:GetChildren()) do
+                            if f:IsA("Folder") and f.Name:find("machines") then
+                                machine = f:FindFirstChild(machineName)
+                                if machine then break end
+                            end
+                        end
+                    end
+                    return machine
+                end
+
+                local function pressE()
+                    local u = game:GetService("VirtualInputManager")
+                    u:SendKeyEvent(true, "E", false, game)
+                    task.wait(0.1)
+                    u:SendKeyEvent(false, "E", false, game)
+                end
+
+                while fastRebirth do
+                    local reb = c.leaderstats.Rebirths.Value
+                    local neededStr = 10000 + (5000 * reb)
+
+                    if c.ultimatesFolder:FindFirstChild("Golden Rebirth") then
+                        neededStr = math.floor(neededStr * (1 - (c.ultimatesFolder["Golden Rebirth"].Value * 0.1)))
+                    end
+
+                    unequipAllPets()
+                    task.wait(0.1)
+                    equipPetByName("Swift Samurai")
+
+                    while c.leaderstats.Strength.Value < neededStr do
+                        for _ = 1, 10 do
+                            c.muscleEvent:FireServer("rep")
+                        end
+                        task.wait()
+                    end
+
+                    unequipAllPets()
+                    task.wait(0.1)
+                    equipPetByName("Tribal Overlord")
+
+                    local machine = findMachine("Jungle Bar Lift")
+                    if machine and machine:FindFirstChild("interactSeat") then
+                        c.Character.HumanoidRootPart.CFrame = machine.interactSeat.CFrame * CFrame.new(0, 3, 0)
+                        repeat
+                            task.wait(0.1)
+                            pressE()
+                        until c.Character.Humanoid.Sit
+                    end
+
+                    local beforeRebirth = c.leaderstats.Rebirths.Value
+                    repeat
+                        a.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
+                        task.wait(0.1)
+                    until c.leaderstats.Rebirths.Value > beforeRebirth
+                end
+            end)
+        end
+    end
+})
+
+FarmarSection:AddToggle({
+    Title = "Tamanho 1",
+    Default = false,
+    Callback = function(state)
+        getgenv().alwaysSize1 = state
+        task.spawn(function()
+            while getgenv().alwaysSize1 do
+                pcall(function()
+                    game:GetService("ReplicatedStorage").rEvents.changeSpeedSizeRemote:InvokeServer("changeSize", 1)
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+})
+
+FarmarSection:AddToggle({
+    Title = "Ilha Do Rei Lift",
+    Default = false,
+    Callback = function(state)
+        if getgenv().working and not state then
+            getgenv().working = false
+            return
+        end
+
+        getgenv().working = state
+        if state then
+            local VIM = game:GetService("VirtualInputManager")
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+
+            local function pressE()
+                VIM:SendKeyEvent(true, "E", false, game)
+                task.wait(0.1)
+                VIM:SendKeyEvent(false, "E", false, game)
+            end
+
+            local function autoLift()
+                while getgenv().working do
+                    LocalPlayer.muscleEvent:FireServer("rep")
+                    task.wait()
+                end
+            end
+
+            local function teleportAndStart(position)
+                local character = LocalPlayer.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    character.HumanoidRootPart.CFrame = position
+                    task.wait(0.1)
+                    pressE()
+                    task.spawn(autoLift)
+                end
+            end
+
+            teleportAndStart(CFrame.new(-8772.970703125, 49.51545715332031, -5663.5625))
+        end
+    end
+})
+
+FarmarSection:AddToggle({
+    Title = "Jungle Gym Lift",
+    Default = false,
+    Callback = function(state)
+        if getgenv().working and not state then
+            getgenv().working = false
+            return
+        end
+
+        getgenv().working = state
+        if state then
+            local VIM = game:GetService("VirtualInputManager")
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+
+            local function pressE()
+                VIM:SendKeyEvent(true, "E", false, game)
+                task.wait(0.1)
+                VIM:SendKeyEvent(false, "E", false, game)
+            end
+
+            local function autoLift()
+                while getgenv().working do
+                    LocalPlayer.muscleEvent:FireServer("rep")
+                    task.wait()
+                end
+            end
+
+            local function teleportAndStart(position)
+                local character = LocalPlayer.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    character.HumanoidRootPart.CFrame = position
+                    task.wait(0.1)
+                    pressE()
+                    task.spawn(autoLift)
+                end
+            end
+
+            teleportAndStart(CFrame.new(-8666, 34, 2070))
+        end
+    end
+})
+
+FarmarSection:AddToggle({
+    Title = "Ocultar os Ganhos de Força (Evita Lag)",
+    Default = false,
+    Callback = function(bool)
+        local rSto = game:GetService("ReplicatedStorage")
+        for _, obj in pairs(rSto:GetChildren()) do
+            if obj.Name:match("Frame$") then
+                obj.Visible = not bool
+            end
+        end
+    end
+})
+
+FarmarSection:AddToggle({
+    Title = "Travar Personagem",
+    Default = false,
+    Callback = function(Value)
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+
+        if Value then
+            local currentPos = LocalPlayer.Character.HumanoidRootPart.CFrame
+            getgenv().posLock = game:GetService("RunService").Heartbeat:Connect(function()
+                if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = currentPos
+                end
+            end)
+        else
+            if getgenv().posLock then
+                getgenv().posLock:Disconnect()
+                getgenv().posLock = nil
+            end
+        end
+    end
+})
